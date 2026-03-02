@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Website</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header with environment info -->
+        <header class="header">
+            <div class="header-left">
+                <div class="breadcrumb">
+                    <span class="breadcrumb-item">Website</span>
+                    <span class="breadcrumb-separator">></span>
+                    <span class="breadcrumb-item current">Domain Setting</span>
+                </div>
+                <h1>Add Website</h1>
+            </div>
+            <div class="header-info">
+                <div class="info-item">
+                    <label>ENVIRONMENT:</label>
+                    <span id="environment">DEV</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content with Tabs -->
+        <main class="main-content">
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" data-tab="list">Website List</button>
+                <button class="tab-btn" data-tab="add">Add New Website</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- List Tab -->
+                <div id="listTab" class="tab-pane active">
+                    <div class="list-header">
+                        <button id="refreshBtn" class="refresh-btn">Refresh</button>
+                    </div>
+                    
+                    <div id="listResults" class="list-results">
+                        <div class="no-data">
+                            <p>No data available</p>
+                            <p>Please go to Add tab to create data</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Tab -->
+                <div id="addTab" class="tab-pane">
+                    <form id="websiteForm" class="form">
+                        <!-- Website Name -->
+                        <div class="form-group">
+                            <label for="websiteName">Website Name:</label>
+                            <input type="text" id="websiteName" name="websiteName" placeholder="Enter website name" required>
+                        </div>
+
+                        <!-- Endpoint -->
+                        <div class="form-group">
+                            <label for="endpoint">Endpoint:</label>
+                            <input type="url" id="endpoint" name="endpoint" placeholder="https://example.com/api" required>
+                        </div>
+
+                        <!-- Wallet Mode -->
+                        <div class="form-group">
+                            <label>Wallet Mode:</label>
+                            <div class="radio-group">
+                                <label class="radio-item">
+                                    <input type="radio" name="walletMode" value="single" required>
+                                    <span class="radio-label">Single Wallet</span>
+                                </label>
+                                <label class="radio-item">
+                                    <input type="radio" name="walletMode" value="multiple" required>
+                                    <span class="radio-label">Multiple Wallets</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Update Button -->
+                        <div class="form-actions">
+                            <button type="submit" id="updateBtn" class="update-btn">UPDATE</button>
+                        </div>
+                    </form>
+
+                    <!-- Status Message -->
+                    <div id="statusMessage" class="status-message"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
