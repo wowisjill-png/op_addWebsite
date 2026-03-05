@@ -353,7 +353,7 @@ Website Configuration:
 - Name: ${data.websiteName}
 - Endpoint: ${data.endpoint}
 - Wallet Mode: ${data.walletMode}
-- Environment: ${data.environment}
+- ENV: ${data.environment}
 - Updated by: ${data.updator}
 - Update Date: ${data.updateDate}
     `.trim();
