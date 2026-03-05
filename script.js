@@ -1,7 +1,15 @@
+// ==========================================
+// MODIFIED BY AI ASSISTANT - 2026/03/05
+// Script version for debugging - v2.1
+// ==========================================
+console.log('=== SCRIPT LOADED v2.1 ===', new Date().toLocaleTimeString());
+console.log('AI Assistant modification test - If you see this, the file was modified successfully');
+
 // DOM Elements
 const form = document.getElementById('websiteForm');
 const updateBtn = document.getElementById('updateBtn');
 const statusMessage = document.getElementById('statusMessage');
+const globalStatusMessage = document.getElementById('globalStatusMessage');
 const environmentElement = document.getElementById('environment');
 const listResults = document.getElementById('listResults');
 const refreshBtn = document.getElementById('refreshBtn');
@@ -11,6 +19,7 @@ const tabPanes = document.querySelectorAll('.tab-pane');
 // Storage for saved data - now supports multiple entries
 let savedDataList = [];
 let lastUpdateDate = null;
+let statusMessageTimer = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -40,6 +49,9 @@ function initializeApp() {
     // Load saved data from localStorage if available
     loadSavedData();
     
+    // Ensure validation runs immediately to set initial button state
+    validateForm();
+
     console.log('Add Website application initialized');
 }
 
@@ -68,6 +80,19 @@ function loadSavedData() {
     const storedData = localStorage.getItem('websiteDataList');
     if (storedData) {
         savedDataList = JSON.parse(storedData);
+        
+        // Backfill certcode for existing entries that don't have one
+        let updated = false;
+        savedDataList.forEach(data => {
+            if (!data.certcode) {
+                data.certcode = generateCertcode();
+                updated = true;
+            }
+        });
+        if (updated) {
+            localStorage.setItem('websiteDataList', JSON.stringify(savedDataList));
+        }
+        
         displayListResults();
     }
 }
@@ -102,51 +127,36 @@ function validateForm() {
     const endpoint = document.getElementById('endpoint').value.trim();
     const walletModeRadios = document.querySelectorAll('input[name="walletMode"]');
     
-    let isValid = true;
-    let hasSelectedWalletMode = false;
-    
-    // Check website name
-    if (!websiteName) {
-        isValid = false;
-    }
-    
-    // Check endpoint - just check if it's not empty
-    if (!endpoint) {
-        isValid = false;
-    }
-    
-    // Check wallet mode
+    let selectedWalletMode = '';
     walletModeRadios.forEach(radio => {
         if (radio.checked) {
-            hasSelectedWalletMode = true;
+            selectedWalletMode = radio.value;
         }
     });
-    
-    if (!hasSelectedWalletMode) {
-        isValid = false;
-    }
-    
-    // Update button state with visual feedback
-    updateBtn.disabled = !isValid;
-    
-    if (isValid) {
-        updateBtn.style.opacity = '1';
-        updateBtn.title = 'Click to update data';
+
+    const validationResult = getEntryValidation({
+        websiteName,
+        endpoint,
+        walletMode: selectedWalletMode
+    }, { skipDuplicateCheck: true, skipFormatCheck: true });
+
+    updateBtn.disabled = !validationResult.isValid;
+    if (validationResult.isValid) {
+        updateBtn.removeAttribute('disabled');
     } else {
-        updateBtn.style.opacity = '0.6';
-        updateBtn.title = 'Please fill all required fields';
+        updateBtn.setAttribute('disabled', '');
     }
-    
-    // Debug information
+    updateBtn.style.opacity = validationResult.isValid ? '1' : '0.6';
+
     console.log('Form validation:', {
         websiteName: websiteName || 'empty',
         endpoint: endpoint || 'empty', 
-        walletMode: hasSelectedWalletMode ? 'selected' : 'not selected',
-        isValid: isValid,
+        walletMode: selectedWalletMode || 'not selected',
+        isValid: validationResult.isValid,
         buttonDisabled: updateBtn.disabled
     });
-    
-    return isValid;
+
+    return validationResult.isValid;
 }
 
 
@@ -165,12 +175,26 @@ function handleFormSubmit(event) {
     const formData = collectFormData();
     
     // Validate form data
-    if (!validateFormData(formData)) {
+    const validationResult = validateFormData(formData);
+    if (!validationResult.isValid) {
         updateBtn.classList.remove('loading');
         updateBtn.disabled = false;
         form.classList.add('shake');
         setTimeout(() => form.classList.remove('shake'), 500);
-        showStatusMessage('Update failed - Please check all required fields', 'error');
+        showStatusMessage(validationResult.message || 'Update failed - Please check all required fields', 'error');
+        return;
+    }
+    
+    // Check Website Name uniqueness
+    const duplicateName = savedDataList.find(
+        entry => entry.websiteName.toLowerCase() === formData.websiteName.toLowerCase()
+    );
+    if (duplicateName) {
+        updateBtn.classList.remove('loading');
+        updateBtn.disabled = false;
+        form.classList.add('shake');
+        setTimeout(() => form.classList.remove('shake'), 500);
+        showStatusMessage(`Website Name "${formData.websiteName}" already exists. Please use a different name.`, 'error');
         return;
     }
     
@@ -188,6 +212,7 @@ function handleFormSubmit(event) {
             
             // Add new data to array instead of overwriting
             formData.id = Date.now(); // Add unique ID for editing
+            formData.certcode = generateCertcode(); // Auto-generate certcode
             savedDataList.push(formData);
             localStorage.setItem('websiteDataList', JSON.stringify(savedDataList));
             
@@ -217,6 +242,15 @@ function handleFormSubmit(event) {
     }, 2000); // Simulate 2-second API call
 }
 
+function generateCertcode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 16; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 function collectFormData() {
     const websiteName = document.getElementById('websiteName').value.trim();
     const endpoint = document.getElementById('endpoint').value.trim();
@@ -236,37 +270,80 @@ function collectFormData() {
 }
 
 function validateFormData(data) {
+    const validationResult = getEntryValidation(data);
     console.log('Validating form data:', data);
-    
-    // Check all required fields - be more lenient
-    const isValid = !!(data.websiteName && data.endpoint && data.walletMode);
-    
     console.log('Validation result:', {
         websiteName: !!data.websiteName,
         endpoint: !!data.endpoint, 
         walletMode: !!data.walletMode,
-        isValid: isValid
+        isValid: validationResult.isValid,
+        message: validationResult.message || 'Valid'
     });
-    
-    return isValid;
+    return validationResult;
 }
 
-function showStatusMessage(message, type) {
-    statusMessage.textContent = message;
-    statusMessage.className = `status-message ${type}`;
-    statusMessage.style.display = 'block';
-    
-    // Auto-hide success messages after 5 seconds
-    if (type === 'success') {
-        setTimeout(() => {
-            hideStatusMessage();
-        }, 5000);
+function getEntryValidation(entry, options = {}) {
+    if (!entry.websiteName || !entry.endpoint || !entry.walletMode) {
+        return { isValid: false, message: 'Please fill all required fields' };
+    }
+
+    if (!options.skipFormatCheck && !isValidUrl(entry.endpoint)) {
+        return { isValid: false, message: 'Invalid URL format' };
+    }
+
+    if (!options.skipDuplicateCheck) {
+        const duplicate = savedDataList.some((item, idx) => {
+            if (typeof options.currentIndex === 'number' && idx === options.currentIndex) {
+                return false;
+            }
+            return item.websiteName.toLowerCase() === entry.websiteName.toLowerCase();
+        });
+
+        if (duplicate) {
+            return { isValid: false, message: `Website Name "${entry.websiteName}" already exists. Please use a different name.` };
+        }
+    }
+
+    return { isValid: true };
+}
+
+function isValidUrl(value) {
+    try {
+        new URL(value);
+        return true;
+    } catch (error) {
+        return false;
     }
 }
 
+function showStatusMessage(message, type) {
+    // Use globalStatusMessage for list operations, statusMessage for form operations
+    const targetElement = globalStatusMessage || statusMessage;
+    targetElement.textContent = message;
+    targetElement.className = `status-message ${type}`;
+    targetElement.style.display = 'block';
+    
+    if (statusMessageTimer) {
+        clearTimeout(statusMessageTimer);
+    }
+    statusMessageTimer = setTimeout(() => {
+        hideStatusMessage();
+    }, 5000);
+}
+
 function hideStatusMessage() {
-    statusMessage.style.display = 'none';
-    statusMessage.className = 'status-message';
+    if (statusMessageTimer) {
+        clearTimeout(statusMessageTimer);
+        statusMessageTimer = null;
+    }
+    if (statusMessage) {
+        statusMessage.style.display = 'none';
+        statusMessage.className = 'status-message';
+    }
+    if (globalStatusMessage) {
+        globalStatusMessage.style.display = 'none';
+        globalStatusMessage.className = 'status-message';
+    }
 }
 
 // Utility function to format data for display/logging
@@ -335,50 +412,71 @@ function enterEditMode(index) {
     statusBtn.style.display = 'none';
     updateBtn.style.display = 'inline-block';
     cancelBtn.style.display = 'inline-block';
+    updateBtn.disabled = false;
 }
 
 function exitEditMode(index) {
     console.log('Exiting edit mode for entry:', index);
     
-    // Show display values and hide inputs for specific entry
-    document.getElementById(`websiteNameValue-${index}`).style.display = 'inline-block';
-    document.getElementById(`endpointValue-${index}`).style.display = 'inline-block';
-    document.getElementById(`walletModeValue-${index}`).style.display = 'inline-block';
-    
-    document.getElementById(`websiteNameInput-${index}`).style.display = 'none';
-    document.getElementById(`endpointInput-${index}`).style.display = 'none';
-    document.getElementById(`walletModeSelect-${index}`).style.display = 'none';
-    
-    // Show edit and status buttons, hide update and cancel buttons
-    const dataItem = document.getElementById(`dataItem-${index}`);
-    const editBtn = dataItem.querySelector('.edit-btn');
-    const statusBtn = dataItem.querySelector('.status-btn');
-    const updateBtn = dataItem.querySelector('.update-btn-list');
-    const cancelBtn = dataItem.querySelector('.cancel-btn');
-    
-    editBtn.style.display = 'inline-block';
-    statusBtn.style.display = 'inline-block';
-    updateBtn.style.display = 'none';
-    cancelBtn.style.display = 'none';
-    
-    // Reset inputs to original values
-    const originalData = savedDataList[index];
-    document.getElementById(`websiteNameInput-${index}`).value = originalData.websiteName;
-    document.getElementById(`endpointInput-${index}`).value = originalData.endpoint;
-    document.getElementById(`walletModeSelect-${index}`).value = originalData.walletMode;
+    try {
+        // Show display values and hide inputs for specific entry
+        document.getElementById(`websiteNameValue-${index}`).style.display = 'inline-block';
+        document.getElementById(`endpointValue-${index}`).style.display = 'inline-block';
+        document.getElementById(`walletModeValue-${index}`).style.display = 'inline-block';
+        
+        document.getElementById(`websiteNameInput-${index}`).style.display = 'none';
+        document.getElementById(`endpointInput-${index}`).style.display = 'none';
+        document.getElementById(`walletModeSelect-${index}`).style.display = 'none';
+        
+        console.log('Updated display styles');
+        
+        // Show edit and status buttons, hide update and cancel buttons
+        const dataItem = document.getElementById(`dataItem-${index}`);
+        const editBtn = dataItem.querySelector('.edit-btn');
+        const statusBtn = dataItem.querySelector('.status-btn');
+        const updateBtn = dataItem.querySelector('.update-btn-list');
+        const cancelBtn = dataItem.querySelector('.cancel-btn');
+        
+        console.log('Found buttons:', { editBtn, statusBtn, updateBtn, cancelBtn });
+        
+        editBtn.style.display = 'inline-block';
+        statusBtn.style.display = 'inline-block';
+        updateBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+        
+        console.log('Updated button displays');
+        
+        // Reset inputs to original values
+        const originalData = savedDataList[index];
+        document.getElementById(`websiteNameInput-${index}`).value = originalData.websiteName;
+        document.getElementById(`endpointInput-${index}`).value = originalData.endpoint;
+        document.getElementById(`walletModeSelect-${index}`).value = originalData.walletMode;
+        
+        console.log('Reset input values');
+    } catch (error) {
+        console.error('Error in exitEditMode:', error);
+        throw error;
+    }
 }
 
+
 function saveChanges(index) {
-    console.log('Saving changes for entry:', index);
+    console.log('saveChanges called for index:', index);
     
     // Get new values from inputs for specific entry
     const newWebsiteName = document.getElementById(`websiteNameInput-${index}`).value.trim();
     const newEndpoint = document.getElementById(`endpointInput-${index}`).value.trim();
     const newWalletMode = document.getElementById(`walletModeSelect-${index}`).value;
     
-    // Validate inputs
-    if (!newWebsiteName || !newEndpoint || !newWalletMode) {
-        showStatusMessage('Please fill all required fields', 'error');
+    console.log('New values:', { newWebsiteName, newEndpoint, newWalletMode });
+    
+    const entryValidation = getEntryValidation({
+        websiteName: newWebsiteName,
+        endpoint: newEndpoint,
+        walletMode: newWalletMode
+    }, { currentIndex: index });
+    if (!entryValidation.isValid) {
+        showStatusMessage(entryValidation.message, 'error');
         return;
     }
     
@@ -405,10 +503,18 @@ function saveChanges(index) {
     lastUpdateElement.textContent = lastUpdateDate;
     
     // Exit edit mode
+    console.log('About to exit edit mode');
     exitEditMode(index);
+    console.log('Finished exiting edit mode');
     
-    // Show success message
-    showStatusMessage('Changes saved successfully', 'success');
+    console.log('About to show success message');
+    try {
+        // Show success message
+        showStatusMessage('Changes saved successfully', 'success');
+        console.log('Successfully called showStatusMessage');
+    } catch (error) {
+        console.error('Error in showStatusMessage:', error);
+    }
 }
 
 function toggleStatus(index) {
@@ -495,6 +601,10 @@ function displayListResults() {
                         <option value="single" ${data.walletMode === 'single' ? 'selected' : ''}>Single Wallet</option>
                         <option value="multiple" ${data.walletMode === 'multiple' ? 'selected' : ''}>Multiple Wallets</option>
                     </select>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Certcode:</span>
+                    <span class="data-value certcode" title="This field cannot be modified">${data.certcode || 'N/A'}</span>
                 </div>
                 <div class="data-row">
                     <span class="data-label">Updated by:</span>

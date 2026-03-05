@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,9 +18,9 @@
                 </div>
                 <h1>Add Website</h1>
             </div>
-            <div class="header-info">
+                <div class="header-info">
                 <div class="info-item">
-                    <label>ENVIRONMENT:</label>
+                    <span class="info-label">ENVIRONMENT:</span>
                     <span id="environment">DEV</span>
                 </div>
             </div>
@@ -55,34 +55,46 @@
                     <form id="websiteForm" class="form">
                         <!-- Website Name -->
                         <div class="form-group">
-                            <label for="websiteName">Website Name:</label>
-                            <input type="text" id="websiteName" name="websiteName" placeholder="Enter website name" required>
+                            <label for="websiteName">Website Name<span class="required">*</span></label>
+                            <input type="text" id="websiteName" name="websiteName" placeholder="Enter website name" required 
+                                   oninvalid="this.setCustomValidity('Required')" 
+                                   oninput="this.setCustomValidity('')">
                         </div>
 
                         <!-- Endpoint -->
                         <div class="form-group">
-                            <label for="endpoint">Endpoint:</label>
-                            <input type="url" id="endpoint" name="endpoint" placeholder="https://example.com/api" required>
+                            <label for="endpoint">Endpoint<span class="required">*</span></label>
+                            <input type="url" id="endpoint" name="endpoint" placeholder="https://example.com/api" required 
+                                   oninvalid="
+                                       if (this.value === '') {
+                                           this.setCustomValidity('Required');
+                                       } else {
+                                           this.setCustomValidity('Invalid URL format');
+                                       }
+                                   " 
+                                   oninput="this.setCustomValidity('')">
                         </div>
 
                         <!-- Wallet Mode -->
                         <div class="form-group">
-                            <label>Wallet Mode:</label>
-                            <div class="radio-group">
-                                <label class="radio-item">
-                                    <input type="radio" name="walletMode" value="single" required>
-                                    <span class="radio-label">Single Wallet</span>
-                                </label>
-                                <label class="radio-item">
-                                    <input type="radio" name="walletMode" value="multiple" required>
-                                    <span class="radio-label">Multiple Wallets</span>
-                                </label>
-                            </div>
+                            <fieldset>
+                                <legend>Wallet Mode<span class="required">*</span></legend>
+                                <div class="radio-group">
+                                    <label class="radio-item" for="walletModeSingle">
+                                        <input type="radio" id="walletModeSingle" name="walletMode" value="single" required oninvalid="this.setCustomValidity('Required')" onchange="this.setCustomValidity('')">
+                                        <span class="radio-label">Single Wallet</span>
+                                    </label>
+                                    <label class="radio-item" for="walletModeMultiple">
+                                        <input type="radio" id="walletModeMultiple" name="walletMode" value="multiple" required>
+                                        <span class="radio-label">Multiple Wallets</span>
+                                    </label>
+                                </div>
+                            </fieldset>
                         </div>
 
                         <!-- Update Button -->
                         <div class="form-actions">
-                            <button type="submit" id="updateBtn" class="update-btn">UPDATE</button>
+                            <button type="submit" id="updateBtn" class="update-btn" disabled>UPDATE</button>
                         </div>
                     </form>
 
@@ -90,6 +102,9 @@
                     <div id="statusMessage" class="status-message"></div>
                 </div>
             </div>
+            
+            <!-- Global Status Message -->
+            <div id="globalStatusMessage" class="status-message"></div>
         </main>
     </div>
 
